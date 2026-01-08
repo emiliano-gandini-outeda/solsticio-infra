@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  ocr-api:
+    build: ./ocr-api
+    env_file:
+      - /srv/.env
+    volumes:
+      - /srv/data/ocr/uploads:/app/uploads
+      - /srv/data/ocr/results:/app/results
+    networks:
+      - internal
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ocr.rule=Host(`ocr.${DOMAIN}`)
+      - traefik.http.routers.ocr.entrypoints=web
+      - traefik.http.services.ocr.loadbalancer.server.port=8000
+
+  ocr-worker:
+    build: ./ocr-worker
+    env_file:
+      - /srv/.env
+    volumes:
+      - /srv/data/ocr/uploads:/app/uploads
+      - /srv/data/ocr/results:/app/results
+    networks:
+      - internal
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - /srv/data/redis:/data
+    networks:
+      - internal
+
+  tesseract:
+    image: tesseractshadow/tesseract4re:4.1.1
+    networks:
+      - internal
+    command: tail -f /dev/null  # Contenedor de utilidades OCR
+
+networks:
+  internal:
+    name: internal
+    driver: bridge
+  proxy:
+    external: true
