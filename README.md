@@ -78,18 +78,130 @@ The stack is composed of:
 │
 └─ README.md                     # Internal documentation
 
+```
 
+## Setup Instructions
+
+### 1. Clone the repository
+
+```bash
+cd /srv
+git clone https://your-repo.git .
+# or, if already cloned
+git pull origin main
+````
+
+---
+
+### 2. Create required directories
+
+The stack requires persistent directories for data, logs, and backups.
+
+```bash
+sudo mkdir -p /srv/data/ocr/uploads
+sudo mkdir -p /srv/data/ocr/results
+sudo mkdir -p /srv/data/redis
+sudo mkdir -p /srv/data/logs/infra-api
+sudo mkdir -p /srv/data/logs/infra-ui
+sudo mkdir -p /srv/data/logs/ocr
+sudo mkdir -p /srv/backups
 ```
 
 ---
 
-## Development Workflow
+### 3. Set proper ownership
 
-1. Clone the repository on your local machine
-2. Copy `.env.example` to `.env` and adjust values for local development
-3. Develop and test services locally using Docker Compose
-4. Push changes to the repository
-5. Pull the repository on the server
-6. Provide a production `.env` file on the server
-7. Start the stack using Docker Compose
+All directories must be writable by the user that runs the stack (assumed `your_user`):
 
+```bash
+sudo chown -R your_user:your_user /srv/stacks
+sudo chown -R your_user:your_user /srv/data
+sudo chown -R your_user:your_user /srv/backups
+```
+
+> This ensures `uv` can create virtual environments and that Docker can write logs and persistent data.
+
+---
+
+### 4. Install Python dependencies with `uv`
+
+Run `uv` inside each Python stack:
+
+```bash
+# Infra API
+cd /srv/stacks/infra-api
+uv sync --frozen --no-dev
+
+# OCR API
+cd /srv/stacks/ocr/ocr-api
+uv sync --frozen --no-dev
+
+# OCR Worker
+cd /srv/stacks/ocr/ocr-worker
+uv sync --frozen --no-dev
+```
+
+> This will create virtual environments and install all dependencies according to the lock files.
+
+---
+
+### 5. Build and deploy the stack
+
+Use the **infra** compose as the entry point for the whole system:
+
+```bash
+cd /srv/stacks/infra
+docker compose build
+docker compose up -d
+```
+
+This will start:
+
+* Traefik (reverse proxy)
+* Infra API
+* Infra UI
+* OCR API + OCR Worker
+* Redis
+* Tesseract container
+
+---
+
+### 6. Verify services
+
+```bash
+docker compose ps
+```
+
+All services should be `Up`:
+
+* `traefik`
+* `infra-api`
+* `infra-ui`
+* `ocr-api`
+* `ocr-worker`
+* `redis`
+* `tesseract`
+
+---
+
+### 7. Test OCR functionality
+
+From your PC:
+
+```bash
+# Upload file
+curl -F "file=@/path/to/file.pdf" http://ocr.solsticio.local/upload
+
+# Check result
+curl http://ocr.solsticio.local/results/file.txt
+```
+
+All uploaded files are stored in `/srv/data/ocr/uploads` and results are stored in `/srv/data/ocr/results`.
+
+---
+
+### Notes
+
+* All secrets, tokens, and configuration variables are managed via `/srv/.env`.
+* The stack assumes the user `your_user` owns all relevant folders.
+* Traefik routes the services via hostnames defined in `.env` (e.g., `ui.DOMAIN`, `ocr.DOMAIN`, etc.).
