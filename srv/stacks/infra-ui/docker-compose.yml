@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  infra-ui:
+    build: .
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ui.rule=Host(`ui.local`)
+
+networks:
+  proxy:
+    external: true
