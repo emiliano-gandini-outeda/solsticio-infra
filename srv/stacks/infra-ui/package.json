@@ -2,7 +2,9 @@
   "name": "infra-ui",
   "private": true,
   "scripts": {
-    "build": "vite"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "vue": "^3.4.0"
