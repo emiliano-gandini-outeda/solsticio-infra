@@ -17,5 +17,5 @@ COPY app ./app
 # Logs persistentes opcionales
 VOLUME ["/app/logs"]
 
-# Comando de arranque
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando de arranque: activar entorno virtual
+CMD ["/bin/sh", "-c", ". .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

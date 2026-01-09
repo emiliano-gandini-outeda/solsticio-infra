@@ -6,6 +6,6 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi",
   "uvicorn[standard]",
-  "redis",         # Para conectar con Redis
-  "python-multipart", # Para subir archivos
+  "redis",
+  "python-multipart",
 ]
