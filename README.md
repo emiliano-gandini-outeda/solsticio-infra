@@ -23,7 +23,6 @@ The stack is composed of:
 ## Repository Structure
 
 ```
-
 /srv
 ├─ stacks/
 │  ├─ infra/                     # Single entry point
@@ -43,6 +42,7 @@ The stack is composed of:
 │  │  ├─ package.json
 │  │  ├─ vite.config.js
 │  │  └─ src/
+│  │     ├─config.js
 │  │     ├─ main.js
 │  │     ├─ api.js
 │  │     └─ App.vue
@@ -75,10 +75,36 @@ The stack is composed of:
 │     └─ ocr/
 │
 ├─ backups/                      # Manual backups
-│
-└─ README.md                     # Internal documentation
-
+├─ README.md
+└─ setup.sh                     # Setup automation script
 ```
+
+---
+
+## Quick Setup
+
+### Option A: Automated Setup (Recommended)
+
+Run the automated setup script from `/srv`:
+
+```bash
+cd /srv
+chmod +x setup.sh
+./setup.sh your_username
+```
+
+Or if you want to use the current user:
+```bash
+./setup.sh
+```
+
+The script will create all required directories, set proper ownership and verify the structure.
+
+### Option B: Manual Setup
+
+Follow the traditional steps:
+
+---
 
 ## Setup Instructions
 
@@ -86,17 +112,23 @@ The stack is composed of:
 
 ```bash
 cd /srv
-git clone https://your-repo.git .
+git clone https://github.com/emiliano-gandini-outeda/solsticio-infra .
 # or, if already cloned
 git pull origin main
-````
+```
 
 ---
 
 ### 2. Create required directories
 
-The stack requires persistent directories for data, logs, and backups.
+**Option A: Using setup script**
+```bash
+cd /srv
+chmod +x setup.sh
+./setup.sh your_username
+```
 
+**Option B: Manually**
 ```bash
 sudo mkdir -p /srv/data/ocr/uploads
 sudo mkdir -p /srv/data/ocr/results
@@ -109,7 +141,44 @@ sudo mkdir -p /srv/backups
 
 ---
 
-### 3. Set proper ownership
+### 3. Configure environment variables
+
+Before proceeding, complete the configuration by setting up the required environment variables:
+
+1. **Update `config.js`** - Open `/srv/stacks/infra-ui/src/config.js` and complete the following variable:
+   ```javascript
+   INFRA_API_TOKEN: "your_secret_token"
+   ```
+
+2. **Setup environment file** - Copy the example environment file and adjust it with your specific values:
+   ```bash
+   cp /srv/.env.example /srv/.env
+   nvim /srv/.env  # or use your preferred text editor
+   ```
+
+   The `.env` file should contain all necessary variables as shown in `.env.example`:
+   ```bash
+   # ---- GLOBAL ----
+   TZ=America/Montevideo
+   ENV=production
+   
+   # ---- SECURITY ----
+   INFRA_API_TOKEN=your_secret_token
+   JWT_SECRET=your_secret
+   
+   # ---- NETWORK ----
+   DOMAIN=solsticio.local
+   PUBLIC_IP=192.168.31.XXX
+   
+   # ---- CONTAINERS ----
+   TEST_CONTAINER_TTL=3600
+   ```
+
+   **Important**: Replace all placeholder values (like `your_secret_token`, `your_secret`, `192.168.31.XXX`) with your actual configuration values.
+
+---
+
+### 4. Set proper ownership
 
 All directories must be writable by the user that runs the stack (assumed `your_user`):
 
@@ -123,7 +192,7 @@ sudo chown -R your_user:your_user /srv/backups
 
 ---
 
-### 4. Install Python dependencies with `uv`
+### 5. Install Python dependencies with `uv`
 
 Run `uv` inside each Python stack:
 
@@ -145,7 +214,7 @@ uv sync --frozen --no-dev
 
 ---
 
-### 5. Build and deploy the stack
+### 6. Build and deploy the stack
 
 Use the **infra** compose as the entry point for the whole system:
 
@@ -162,11 +231,10 @@ This will start:
 * Infra UI
 * OCR API + OCR Worker
 * Redis
-* Tesseract container
 
 ---
 
-### 6. Verify services
+### 7. Verify services
 
 ```bash
 docker compose ps
@@ -180,28 +248,129 @@ All services should be `Up`:
 * `ocr-api`
 * `ocr-worker`
 * `redis`
-* `tesseract`
 
 ---
 
-### 7. Test OCR functionality
+### 8. Test OCR functionality (via UI)
 
-From your PC:
+The example OCR system is designed to be used **from the web UI**, not manually via `curl`.
 
-```bash
-# Upload file
-curl -F "file=@/path/to/file.pdf" http://ocr.solsticio.local/upload
+#### Access the UI
 
-# Check result
-curl http://ocr.solsticio.local/results/file.txt
+Open in your browser:
+
+```
+http://ui.solsticio.local
 ```
 
-All uploaded files are stored in `/srv/data/ocr/uploads` and results are stored in `/srv/data/ocr/results`.
+#### OCR workflow
+
+1. Go to the **OCR** section in the dashboard.
+2. Click **Select file** and choose a PDF from your local machine.
+3. Click **Procesar OCR** to enqueue the job.
+4. The job will appear under **Trabajos en curso**.
+5. Once processing finishes, the result will appear under **Resultados**.
+6. Click **📥 Descargar** to download the generated `.txt` file directly to your default downloads folder.
+
+The UI automatically refreshes OCR jobs and results.
+
+#### Storage paths (server-side)
+
+* Uploaded files:
+
+  ```
+  /srv/data/ocr/uploads
+  ```
+* OCR results:
+
+  ```
+  /srv/data/ocr/results
+  ```
+
+These paths are shared between the OCR API and worker via Docker volumes.
 
 ---
 
-### Notes
+Perfecto. Acá tenés la **sección adicional**, con el **mismo estilo claro y orientado a UI** que el OCR workflow:
 
-* All secrets, tokens, and configuration variables are managed via `/srv/.env`.
-* The stack assumes the user `your_user` owns all relevant folders.
-* Traefik routes the services via hostnames defined in `.env` (e.g., `ui.DOMAIN`, `ocr.DOMAIN`, etc.).
+---
+
+### 9. Docker workflow (via UI)
+
+Container management is handled **entirely from the web UI**, acting as a control panel over Docker.
+
+#### Access
+
+Open in your browser:
+
+```
+http://ui.solsticio.local
+```
+
+#### Docker workflow
+
+1. The **Contenedores** table lists all managed Docker containers in the stack.
+2. Each container shows:
+
+   * **Name**
+   * **Current status** (`running`, `exited`, etc.)
+3. Available actions per container:
+
+   * **▶ Start** starts the container
+   * **■ Stop** stops the container
+   * **🧪 Test 1h** runs a health/test action for the container
+   * **🗑 Remove** stops and removes the container
+4. Click **↻ Refresh** to reload container status at any time.
+
+All actions are executed immediately through the backend API and reflected in real time in the UI.
+
+#### What happens behind the scenes
+
+* The UI sends authenticated requests to the **infra API**.
+* The infra API:
+
+  * Executes Docker commands (`start`, `stop`, `rm`, etc.)
+  * Collects container state and metadata
+  * Returns normalized status data to the UI
+* No direct Docker access is required from the browser.
+
+---
+
+## Troubleshooting
+
+### Permission Issues
+```bash
+# If you encounter permission errors:
+sudo chmod +x /srv/setup.sh
+./setup.sh $(whoami)
+```
+
+### Missing Directories
+```bash
+# Run the setup script again:
+cd /srv
+./setup.sh your_username
+```
+
+### Docker Issues
+```bash
+# Check Docker service
+sudo systemctl status docker
+
+# Restart Docker
+sudo systemctl restart docker
+
+# Check logs
+cd /srv/stacks/infra
+docker compose logs
+```
+
+---
+
+## License
+AGPL-3.0 License - See [LICENSE](LICENSE) file for details.
+
+---
+
+**Maintained by Emiliano Gandini** | [GitHub](https://github.com/emiliano-gandini-outeda)
+
