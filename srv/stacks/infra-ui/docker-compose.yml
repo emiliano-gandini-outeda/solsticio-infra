@@ -2,12 +2,12 @@ version: "3.9"
 
 services:
   infra-ui:
-    build: .
-    networks:
-      - proxy
+    image: infra-infra-ui
+    container_name: infra-infra-ui
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.ui.rule=Host(`ui.local`)
+      - "traefik.enable=true"
+      - "traefik.http.routers.infra-ui.rule=Host(`solsticio.local`)"
+      - "traefik.http.routers.infra-ui.entrypoints=web"
 
 networks:
   proxy:
