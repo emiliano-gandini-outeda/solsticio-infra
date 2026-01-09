@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, BackgroundTasks
 from pydantic import BaseModel
 import docker, os, subprocess, time, psutil
 from typing import Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 API_TOKEN = os.getenv("INFRA_API_TOKEN")
 STACKS_PATH = "/srv/stacks"
@@ -12,6 +13,14 @@ if not API_TOKEN:
 
 client = docker.from_env()
 app = FastAPI(title="Infra API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://ui.solsticio.local"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def auth(authorization: Optional[str] = Header(None)):
     if authorization != f"Bearer {API_TOKEN}":
